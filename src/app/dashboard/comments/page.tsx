@@ -35,15 +35,31 @@ export default function CommentsManagementPage() {
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [replyContent, setReplyContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const supabase = createClient()
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
 
   const fetchComments = useCallback(async () => {
+    if (!supabaseInstance) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseInstance.auth.getUser()
     if (!user) return
 
     // 1. 先获取该作者的所有文章 ID
-    const { data: userPosts } = await supabase
+    const { data: userPosts } = await supabaseInstance
       .from('posts')
       .select('id')
       .eq('author_id', user.id)
@@ -54,10 +70,10 @@ export default function CommentsManagementPage() {
       return
     }
 
-    const postIds = userPosts.map(p => p.id)
+    const postIds = userPosts.map((p: any) => p.id)
 
     // 2. 获取这些文章下的所有评论
-    const { data, error } = await supabase
+    const { data, error } = await supabaseInstance
       .from('comments')
       .select('*, posts(title), profiles(full_name)')
       .in('post_id', postIds)
@@ -74,14 +90,14 @@ export default function CommentsManagementPage() {
       setComments(processedComments || [])
     }
     setLoading(false)
-  }, [supabase])
+  }, [supabaseInstance])
 
   useEffect(() => {
     fetchComments()
   }, [fetchComments])
 
   const handleUpdateStatus = async (id: string, status: 'approved' | 'rejected') => {
-    const { error } = await supabase
+    const { error } = await supabaseInstance
       .from('comments')
       .update({ status })
       .eq('id', id)
@@ -97,7 +113,7 @@ export default function CommentsManagementPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('确定要永久删除这条评论吗？')) return
 
-    const { error } = await supabase
+    const { error } = await supabaseInstance
       .from('comments')
       .delete()
       .eq('id', id)
@@ -114,10 +130,10 @@ export default function CommentsManagementPage() {
     if (!replyContent.trim()) return
 
     setSubmitting(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseInstance.auth.getUser()
     if (!user) return
 
-    const { error } = await supabase.from('comments').insert({
+    const { error } = await supabaseInstance.from('comments').insert({
       content: replyContent,
       post_id: comment.post_id,
       author_id: user.id,

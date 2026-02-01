@@ -10,15 +10,31 @@ export default function DashboardPage() {
     comments: 0
   })
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      if (!supabaseInstance) {
+        setLoading(false);
+        return;
+      }
+      
+      const { data: { user } } = await supabaseInstance.auth.getUser()
       if (!user) return
 
       // 获取文章总数
-      const { count: postsCount, error: postsError } = await supabase
+      const { count: postsCount, error: postsError } = await supabaseInstance
         .from('posts')
         .select('*', { count: 'exact', head: true })
         .eq('author_id', user.id)
@@ -26,7 +42,7 @@ export default function DashboardPage() {
       if (postsError) console.error('Error fetching posts count:', postsError)
 
       // 获取该作者的所有文章 ID
-      const { data: userPosts, error: userPostsError } = await supabase
+      const { data: userPosts, error: userPostsError } = await supabaseInstance
         .from('posts')
         .select('id')
         .eq('author_id', user.id)
@@ -35,9 +51,9 @@ export default function DashboardPage() {
       
       let commentsCount = 0
       if (userPosts && userPosts.length > 0) {
-        const postIds = userPosts.map(p => p.id)
+        const postIds = userPosts.map((p: any) => p.id)
         // 获取这些文章收到的所有评论（不限状态）
-        const { count, error: commentsError } = await supabase
+        const { count, error: commentsError } = await supabaseInstance
           .from('comments')
           .select('*', { count: 'exact', head: true })
           .in('post_id', postIds)
@@ -55,7 +71,7 @@ export default function DashboardPage() {
     }
 
     fetchStats()
-  }, [supabase])
+  }, [supabaseInstance])
 
   return (
     <div className="space-y-6">

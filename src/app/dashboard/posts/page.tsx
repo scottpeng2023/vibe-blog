@@ -29,15 +29,32 @@ interface Post {
 export default function PostsPage() {
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
+  
   const router = useRouter()
 
   const fetchPosts = async () => {
+    if (!supabaseInstance) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseInstance.auth.getUser()
     if (!user) return
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseInstance
       .from('posts')
       .select('*')
       .eq('author_id', user.id)
@@ -58,7 +75,7 @@ export default function PostsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('确定要删除这篇文章吗？')) return
 
-    const { error } = await supabase.from('posts').delete().eq('id', id)
+    const { error } = await supabaseInstance.from('posts').delete().eq('id', id)
 
     if (error) {
       toast.error('删除失败')

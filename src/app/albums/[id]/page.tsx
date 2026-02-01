@@ -33,16 +33,33 @@ export default function AlbumDetailPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
-  const supabase = createClient();
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
 
   useEffect(() => {
     fetchAlbumDetails();
   }, [albumId]);
 
   const fetchAlbumDetails = async () => {
+    if (!supabaseInstance) {
+      console.error('Supabase客户端未初始化');
+      setLoading(false);
+      return;
+    }
+    
     try {
       // 获取相册信息
-      const { data: albumData, error: albumError } = await supabase
+      const { data: albumData, error: albumError } = await supabaseInstance
         .from('albums')
         .select('*')
         .eq('id', albumId)
@@ -53,7 +70,7 @@ export default function AlbumDetailPage() {
       setAlbum(albumData);
 
       // 获取相册中的照片
-      const { data: photosData, error: photosError } = await supabase
+      const { data: photosData, error: photosError } = await supabaseInstance
         .from('photos')
         .select('*')
         .eq('album_id', albumId)

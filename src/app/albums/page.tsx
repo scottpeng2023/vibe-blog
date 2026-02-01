@@ -21,16 +21,33 @@ interface Album {
 export default function AlbumsPage() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
 
   useEffect(() => {
     fetchAlbums();
   }, []);
 
   const fetchAlbums = async () => {
+    if (!supabaseInstance) {
+      console.error('Supabase客户端未初始化');
+      setLoading(false);
+      return;
+    }
+    
     try {
       // 首先获取所有相册
-      const { data: albumsData, error: albumsError } = await supabase
+      const { data: albumsData, error: albumsError } = await supabaseInstance
         .from('albums')
         .select(`
           id, 
@@ -48,7 +65,7 @@ export default function AlbumsPage() {
       // 对每个相册获取照片数量
       const albumsWithCounts = [];
       for (const album of albumsData) {
-        const { count, error: countError } = await supabase
+        const { count, error: countError } = await supabaseInstance
           .from('photos')
           .select('*', { count: 'exact', head: true })
           .eq('album_id', album.id);
