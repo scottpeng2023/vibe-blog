@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as zod from 'zod';
@@ -24,7 +24,18 @@ const forgotPasswordSchema = zod.object({
 
 export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
 
   const form = useForm<zod.infer<typeof forgotPasswordSchema>>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -34,9 +45,14 @@ export default function ForgotPasswordPage() {
   });
 
   async function onSubmit(values: zod.infer<typeof forgotPasswordSchema>) {
+    if (!supabaseInstance) {
+      toast.error('认证服务暂时不可用，请稍后再试。');
+      return;
+    }
+    
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
+      const { error } = await supabaseInstance.auth.resetPasswordForEmail(values.email, {
         redirectTo: `${window.location.origin}/auth/update-password`,
       });
 

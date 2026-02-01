@@ -38,15 +38,29 @@ export default function EditPostPage({ params }: EditPostPageProps) {
   const [published, setPublished] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
-  const supabase = createClient()
   const router = useRouter()
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
 
   useEffect(() => {
+    if (!supabaseInstance) {
+      setIsFetching(false);
+      return; // 如果supabase实例未初始化，直接返回
+    }
+    
     const fetchData = async () => {
-
-
       // 获取文章详情
-      const { data: post, error } = await supabase
+      const { data: post, error } = await supabaseInstance
         .from('posts')
         .select('*, post_tags(tags(name))')
         .eq('id', id)
@@ -73,7 +87,7 @@ export default function EditPostPage({ params }: EditPostPageProps) {
     }
 
     fetchData()
-  }, [id, router, supabase])
+  }, [id, router, supabaseInstance])
 
   const handleAddTag = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && tagInput.trim()) {
@@ -90,6 +104,11 @@ export default function EditPostPage({ params }: EditPostPageProps) {
   }
 
   const handleSubmit = async (isPublished: boolean) => {
+    if (!supabaseInstance) {
+      toast.error('认证服务暂时不可用，请稍后再试。');
+      return;
+    }
+    
     if (!title || !slug || !content) {
       toast.error('请填写标题、Slug 和内容')
       return
@@ -98,7 +117,7 @@ export default function EditPostPage({ params }: EditPostPageProps) {
     setIsLoading(true)
 
     // 1. 更新文章基础信息
-    const { error: postError } = await supabase
+    const { error: postError } = await supabaseInstance
       .from('posts')
       .update({
         title,
@@ -119,13 +138,13 @@ export default function EditPostPage({ params }: EditPostPageProps) {
     }
 
     // 2. 处理标签（先删除旧的，再插入新的 - 简单处理逻辑）
-    await supabase.from('post_tags').delete().eq('post_id', id)
+    await supabaseInstance.from('post_tags').delete().eq('post_id', id)
     
     if (tags.length > 0) {
       for (const tagName of tags) {
-        let { data: tag } = await supabase.from('tags').select('id').eq('name', tagName).maybeSingle()
+        let { data: tag } = await supabaseInstance.from('tags').select('id').eq('name', tagName).maybeSingle()
         if (!tag) {
-          const { data: newTag } = await supabase
+          const { data: newTag } = await supabaseInstance
             .from('tags')
             .insert({ name: tagName, slug: tagName.toLowerCase().replace(/ /g, '-') })
             .select()
@@ -133,7 +152,7 @@ export default function EditPostPage({ params }: EditPostPageProps) {
           tag = newTag
         }
         if (tag) {
-          await supabase.from('post_tags').insert({ post_id: id, tag_id: tag.id })
+          await supabaseInstance.from('post_tags').insert({ post_id: id, tag_id: tag.id })
         }
       }
     }

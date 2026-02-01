@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -28,7 +28,18 @@ const loginSchema = zod.object({
 export default function LoginPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
-  const supabase = createClient()
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
 
   const form = useForm<zod.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -39,9 +50,14 @@ export default function LoginPage() {
   })
 
   async function onSubmit(values: zod.infer<typeof loginSchema>) {
+    if (!supabaseInstance) {
+      toast.error('认证服务暂时不可用，请稍后再试。');
+      return;
+    }
+    
     setIsLoading(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabaseInstance.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       })

@@ -31,8 +31,19 @@ export default function NewPostPage() {
   const [tagInput, setTagInput] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const supabase = createClient()
   const router = useRouter()
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
 
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,24 +68,29 @@ export default function NewPostPage() {
   }
 
   const handleSubmit = async (published: boolean) => {
+    if (!supabaseInstance) {
+      toast.error('认证服务暂时不可用，请稍后再试。');
+      return;
+    }
+    
     if (!title || !slug || !content) {
       toast.error('请填写标题、Slug 和内容')
       return
     }
 
     setIsLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user } } = await supabaseInstance.auth.getUser()
     if (!user) return
 
     // 确保 profile 存在，如果不存在则自动创建一个（修复外键约束错误）
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseInstance
       .from('profiles')
       .select('id')
       .eq('id', user.id)
       .single()
 
     if (!profile) {
-      const { error: profileError } = await supabase.from('profiles').insert({
+      const { error: profileError } = await supabaseInstance.from('profiles').insert({
         id: user.id,
         full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
       })
@@ -86,7 +102,7 @@ export default function NewPostPage() {
     }
 
     // 1. 插入文章
-    const { data: post, error: postError } = await supabase
+    const { data: post, error: postError } = await supabaseInstance
       .from('posts')
       .insert({
         title,
@@ -111,10 +127,10 @@ export default function NewPostPage() {
     if (tags.length > 0 && post) {
       for (const tagName of tags) {
         // 查找或创建标签
-        let { data: tag } = await supabase.from('tags').select('id').eq('name', tagName).maybeSingle()
+        let { data: tag } = await supabaseInstance.from('tags').select('id').eq('name', tagName).maybeSingle()
         
         if (!tag) {
-          const { data: newTag } = await supabase
+          const { data: newTag } = await supabaseInstance
             .from('tags')
             .insert({ name: tagName, slug: tagName.toLowerCase().replace(/ /g, '-') })
             .select()
@@ -123,7 +139,7 @@ export default function NewPostPage() {
         }
 
         if (tag) {
-          await supabase.from('post_tags').insert({
+          await supabaseInstance.from('post_tags').insert({
             post_id: post.id,
             tag_id: tag.id
           })

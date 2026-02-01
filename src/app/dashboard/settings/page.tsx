@@ -43,7 +43,18 @@ export default function SettingsPage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const supabase = createClient()
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.error('Supabase客户端初始化失败:', error);
+    }
+  }, []);
 
   const passwordForm = useForm<zod.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
@@ -67,12 +78,17 @@ export default function SettingsPage() {
   const [userId, setUserId] = useState('');
   
   useEffect(() => {
+    if (!supabaseInstance) {
+      setIsFetching(false);
+      return; // 如果supabase实例未初始化，直接返回
+    }
+    
     const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabaseInstance.auth.getUser()
       if (user) {
         setUserEmail(user.email || '');
         setUserId(user.id || '');
-        const { data, error } = await supabase
+        const { data, error } = await supabaseInstance
           .from('profiles')
           .select('*')
           .eq('id', user.id)
@@ -90,15 +106,20 @@ export default function SettingsPage() {
     }
 
     fetchProfile()
-  }, [form, supabase])
+  }, [form, supabaseInstance])
 
   async function onSubmit(values: zod.infer<typeof settingsSchema>) {
+    if (!supabaseInstance) {
+      toast.error('认证服务暂时不可用，请稍后再试。');
+      return;
+    }
+    
     setIsLoading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabaseInstance.auth.getUser()
       if (!user) return
 
-      const { error } = await supabase
+      const { error } = await supabaseInstance
         .from('profiles')
         .update({
           full_name: values.fullName,
@@ -126,10 +147,15 @@ export default function SettingsPage() {
   }
 
   const handlePasswordSubmit = async (values: zod.infer<typeof passwordSchema>) => {
+    if (!supabaseInstance) {
+      toast.error('认证服务暂时不可用，请稍后再试。');
+      return;
+    }
+    
     setPasswordLoading(true);
     try {
       // 更新密码
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { error: updateError } = await supabaseInstance.auth.updateUser({
         password: values.newPassword,
       });
       
