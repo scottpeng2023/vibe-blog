@@ -16,36 +16,65 @@ export async function generateMetadata({
   params,
 }: PostPageProps): Promise<Metadata> {
   const { slug } = await params
-  const supabase = await createClient(false)
-
-  const { data: post } = await supabase
-    .from('posts')
-    .select('title, excerpt')
-    .eq('slug', slug)
-    .single()
-
-  if (!post) {
+  
+  // 检查环境变量是否存在
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.warn('Supabase配置缺失，使用默认元数据')
     return {
-      title: '文章未找到',
+      title: '文章详情 | Vibe Blog',
+      description: 'Vibe Blog - 分享知识与创意的平台',
     }
   }
+  
+  try {
+    const supabase = await createClient(false)
 
-  return {
-    title: `${post.title} | Vibe Blog`,
-    description: post.excerpt || `${post.title} 的详情页面`,
+    const { data: post } = await supabase
+      .from('posts')
+      .select('title, excerpt')
+      .eq('slug', slug)
+      .single()
+
+    if (!post) {
+      return {
+        title: '文章未找到',
+      }
+    }
+
+    return {
+      title: `${post.title} | Vibe Blog`,
+      description: post.excerpt || `${post.title} 的详情页面`,
+    }
+  } catch (error) {
+    console.error('生成元数据时出错:', error)
+    return {
+      title: '文章详情 | Vibe Blog',
+      description: 'Vibe Blog - 分享知识与创意的平台',
+    }
   }
 }
 
 export async function generateStaticParams() {
-  const supabase = await createClient(false)
-  const { data: posts } = await supabase
-    .from('posts')
-    .select('slug')
-    .eq('published', true)
+  // 检查环境变量是否存在
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.warn('Supabase配置缺失，跳过静态参数生成')
+    return []
+  }
+  
+  try {
+    const supabase = await createClient(false)
+    const { data: posts } = await supabase
+      .from('posts')
+      .select('slug')
+      .eq('published', true)
 
-  return posts?.map((post) => ({
-    slug: post.slug,
-  })) || []
+    return posts?.map((post) => ({
+      slug: post.slug,
+    })) || []
+  } catch (error) {
+    console.error('生成静态参数时出错:', error)
+    return []
+  }
 }
 
 export default async function PostDetailPage({ params }: PostPageProps) {
