@@ -38,13 +38,20 @@ export default function CommentsManagementPage() {
   
   // 初始化Supabase客户端，处理环境变量缺失的情况
   const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  const [clientError, setClientError] = useState<string | null>(null);
   
   useEffect(() => {
     try {
+      // 检查环境变量是否存在
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        setClientError('Supabase配置缺失，请检查环境变量');
+        return;
+      }
       const client = createClient();
       setSupabaseInstance(client);
     } catch (error) {
       console.error('Supabase客户端初始化失败:', error);
+      setClientError('Supabase客户端初始化失败');
     }
   }, []);
 
@@ -152,6 +159,16 @@ export default function CommentsManagementPage() {
     setSubmitting(false)
   }
 
+  if (clientError) {
+    return (
+      <div className="p-8 text-center text-destructive">
+        错误：{clientError}
+        <br />
+        请确保已正确配置Supabase环境变量。
+      </div>
+    );
+  }
+  
   if (loading) return <div className="p-8 text-center text-muted-foreground">加载中...</div>
 
   return (
