@@ -15,18 +15,34 @@ export const Header = () => {
   const [loading, setLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userName, setUserName] = useState<string | null>(null)
-  const supabase = createClient()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
+  
+  // 初始化Supabase客户端，处理环境变量缺失的情况
+  const [supabaseInstance, setSupabaseInstance] = useState<any>(null);
+  
+  useEffect(() => {
+    try {
+      const client = createClient();
+      setSupabaseInstance(client);
+    } catch (error) {
+      console.warn('Supabase客户端初始化失败:', error);
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    if (!supabaseInstance) {
+      return; // 如果supabase实例未初始化，直接返回
+    }
+    
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user } } = await supabaseInstance.auth.getUser()
       setUser(user)
       
       // 获取用户详细信息
       if (user) {
-        const { data: profileData } = await supabase
+        const { data: profileData } = await supabaseInstance
           .from('profiles')
           .select('full_name')
           .eq('id', user.id)
@@ -45,13 +61,13 @@ export const Header = () => {
 
     getUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabaseInstance.auth.onAuthStateChange(
       (event: AuthChangeEvent, session: Session | null) => {
         setUser(session?.user ?? null)
         if (session?.user) {
           // 用户登录状态改变时也获取用户名
           const fetchUserName = async () => {
-            const { data: profileData } = await supabase
+            const { data: profileData } = await supabaseInstance
               .from('profiles')
               .select('full_name')
               .eq('id', session.user!.id)
@@ -70,11 +86,16 @@ export const Header = () => {
       }
     )
 
-    return () => subscription.unsubscribe()
-  }, [supabase])
+    return () => subscription?.unsubscribe && subscription.unsubscribe()
+  }, [supabaseInstance])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    if (!supabaseInstance) {
+      console.error('Supabase客户端未初始化');
+      return;
+    }
+    
+    await supabaseInstance.auth.signOut()
     router.push('/')
     router.refresh()
   }
