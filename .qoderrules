@@ -1,0 +1,101 @@
+# 📋 博客系统项目级开发规范 (Qoder Project Rules)
+
+> **版本**: 1.0
+> **关联文档**: [spec-new.md](./spec-new.md)
+
+---
+
+## 1. 技术栈约束 (Tech Stack)
+
+- **框架**: Next.js 14+ (必须使用 App Router 模式)
+- **UI**: shadcn/ui + Tailwind CSS
+- **后端/数据库**: Supabase (PostgreSQL + Auth + Storage)
+- **表单**: react-hook-form + zod
+- **语言**: TypeScript (严格模式)
+
+---
+
+## 2. 目录结构规范 (Folder Structure)
+
+所有代码必须遵循以下结构：
+- `src/app/`: 路由和页面组件 (Server Components 优先)
+- `src/components/ui/`: shadcn/ui 基础组件
+- `src/components/blog/`: 博客业务特定组件
+- `src/components/layout/`: 全局布局组件 (Header, Footer, etc.)
+- `src/lib/`: 第三方库配置 (如 `supabase/client.ts`) 及工具函数
+- `src/hooks/`: 自定义 React Hooks
+- `src/types/`: TypeScript 接口和类型定义
+- `src/constants/`: 常量配置
+
+---
+
+## 3. 命名约定 (Naming Conventions)
+
+- **文件**: 使用 kebab-case (如 `post-card.tsx`, `use-auth.ts`)
+- **组件**: 使用 PascalCase (如 `PostCard`)
+- **函数/变量**: 使用 camelCase (如 `getPostBySlug`)
+- **常量**: 使用 UPPER_SNAKE_CASE (如 `MAX_POSTS_PER_PAGE`)
+- **类型/接口**: 使用 PascalCase (如 `interface UserProfile`)
+
+---
+
+## 4. 开发核心原则 (Core Principles)
+
+### 4.1 React & Next.js
+- **服务端优先**: 优先使用 Server Components 进行数据拉取。
+- **客户端指令**: 仅在需要交互、状态或浏览器 API 时使用 `'use client'`。
+- **渲染策略**: 
+  - 首页/列表页: 使用 ISR (Incremental Static Regeneration)。
+  - 文章详情页: 使用 SSG + ISR。
+  - 管理后台: 使用 CSR。
+
+### 4.2 Supabase & 数据库
+- **RLS 优先**: 永远不要关闭数据库表的 Row Level Security。
+- **客户端选择**: 
+  - 服务端代码使用 `createRouteHandlerClient` 或 `createServerComponentClient`。
+  - 客户端代码使用 `createClientComponentClient`。
+- **索引**: 任何经常查询的字段（如 `slug`, `author_id`）必须在 Schema 中定义索引。
+
+### 4.3 UI & 样式
+- **响应式**: 必须兼容 Mobile (375px+), Tablet, Desktop。
+- **状态处理**: 异步操作必须包含 Loading (Skeleton) 和 Error 状态处理。
+- **组件化**: 严禁在页面中直接编写冗长的 HTML 结构，应拆分为小颗粒度的独立组件。
+
+---
+
+## 5. API 与错误处理
+
+### 5.1 统一响应格式
+所有内部 API 必须遵循：
+```json
+// 成功
+{ "success": true, "data": { ... } }
+// 失败
+{ "success": false, "error": { "code": "CODE", "message": "msg" } }
+```
+
+### 5.2 错误码
+严禁使用魔法数字，必须使用 `spec-new.md` 中定义的错误码（如 `UNAUTHORIZED`, `VALIDATION_ERROR`）。
+
+---
+
+## 6. Git & 协作规范
+
+### 6.1 提交信息格式
+`<type>(<scope>): <subject>`
+- **type**: feat, fix, docs, style, refactor, test, chore
+- **scope**: posts, auth, ui, api, db
+- **示例**: `feat(posts): add markdown editor support`
+
+### 6.2 并行开发建议
+多 Agent 协作时：
+- 修改 UI 组件前先确认是否已存在于 `src/components/ui`。
+- 严禁在未沟通情况下修改全局配置文件（如 `tailwind.config.js`, `next.config.js`）。
+
+---
+
+## 7. 测试要求
+
+- **逻辑函数**: 必须编写 Jest 单元测试。
+- **关键交互**: 核心流程（如发布文章、评论）建议编写 Playwright E2E 测试。
+- **验证**: 提交 PR 前必须运行 `npm run lint` 和 `npm run build` 确保无错。
