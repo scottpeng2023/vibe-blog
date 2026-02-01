@@ -5,7 +5,7 @@ import { unstable_noStore as noStore } from 'next/cache';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { albumId: string } }
+  { params }: { params: Promise<{ albumId: string }> }
 ) {
   try {
     noStore(); // 确保不缓存用户特定的数据
@@ -18,7 +18,7 @@ export async function GET(
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const albumId = params.albumId;
+    const { albumId } = await params;
 
     // 首先验证用户是否有权访问此相册
     const { error: albumCheckError } = await supabase
@@ -50,7 +50,7 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { albumId: string } }
+  { params }: { params: Promise<{ albumId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -61,7 +61,7 @@ export async function POST(
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const albumId = params.albumId;
+    const { albumId } = await params;
 
     // 验证用户是否有权向此相册添加照片
     const { error: albumCheckError } = await supabase

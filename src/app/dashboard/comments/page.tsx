@@ -168,8 +168,8 @@ export default function CommentsManagementPage() {
               </TableRow>
             ) : (
               comments.map((comment) => (
-                <>
-                  <TableRow key={`${comment.id}-main`}>
+                <tbody key={comment.id}>
+                  <TableRow>
                     <TableCell className="max-w-[300px]">
                       <p className="truncate text-sm" title={comment.content}>
                         {comment.content}
@@ -264,7 +264,7 @@ export default function CommentsManagementPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </tbody>
               ))
             )}
           </TableBody>

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { User, AuthChangeEvent, Session } from '@supabase/supabase-js'
-import { Moon, Sun, Menu, X, Search } from 'lucide-react'
+import { Moon, Sun, Menu, X, Search, User as UserIcon } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Input } from '@/components/ui/input'
 
@@ -14,6 +14,7 @@ export const Header = () => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [userName, setUserName] = useState<string | null>(null)
   const supabase = createClient()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
@@ -22,6 +23,23 @@ export const Header = () => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setUser(user)
+      
+      // 获取用户详细信息
+      if (user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileData) {
+          setUserName(profileData.full_name || user.email?.split('@')[0] || '用户');
+        } else {
+          // 如果没有找到profile，使用邮箱的用户名部分
+          setUserName(user.email?.split('@')[0] || '用户');
+        }
+      }
+      
       setLoading(false)
     }
 
@@ -30,14 +48,34 @@ export const Header = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, session: Session | null) => {
         setUser(session?.user ?? null)
+        if (session?.user) {
+          // 用户登录状态改变时也获取用户名
+          const fetchUserName = async () => {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', session.user!.id)
+              .single();
+            
+            if (profileData) {
+              setUserName(profileData.full_name || session.user!.email?.split('@')[0] || '用户');
+            } else {
+              setUserName(session.user!.email?.split('@')[0] || '用户');
+            }
+          };
+          fetchUserName();
+        } else {
+          setUserName(null);
+        }
       }
     )
 
     return () => subscription.unsubscribe()
-  }, [supabase.auth])
+  }, [supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    router.push('/')
     router.refresh()
   }
 
@@ -73,8 +111,9 @@ export const Header = () => {
             相册
           </Link>
           {!loading && user && (
-            <Link href="/dashboard" className="text-sm font-medium hover:text-primary transition-colors">
-              控制台
+            <Link href="/dashboard" className="text-sm font-medium hover:text-primary transition-colors flex items-center gap-1">
+              <UserIcon className="h-4 w-4" />
+              {userName || '用户'}
             </Link>
           )}
           
@@ -159,8 +198,9 @@ export const Header = () => {
               相册
             </Link>
             {!loading && user && (
-              <Link href="/dashboard" className="text-sm font-medium hover:text-primary py-2 block" onClick={() => setMobileMenuOpen(false)}>
-                控制台
+              <Link href="/dashboard" className="text-sm font-medium hover:text-primary py-2 block flex items-center gap-1" onClick={() => setMobileMenuOpen(false)}>
+                <UserIcon className="h-4 w-4" />
+                {userName || '用户'}
               </Link>
             )}
             {!loading && (

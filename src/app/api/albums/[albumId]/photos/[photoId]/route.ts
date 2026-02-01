@@ -4,7 +4,7 @@ import { unstable_noStore as noStore } from 'next/cache';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { albumId: string; photoId: string } }
+  { params }: { params: Promise<{ albumId: string; photoId: string }> }
 ) {
   try {
     noStore(); // 确保不缓存用户特定的数据
@@ -17,7 +17,7 @@ export async function PUT(
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { albumId, photoId } = params;
+    const { albumId, photoId } = await params;
 
     // 验证用户是否有权更新此照片
     // 首先获取用户拥有的相册ID列表
@@ -70,7 +70,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { albumId: string; photoId: string } }
+  { params }: { params: Promise<{ albumId: string; photoId: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -81,7 +81,7 @@ export async function DELETE(
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { albumId, photoId } = params;
+    const { albumId, photoId } = await params;
 
     // 验证用户是否有权删除此照片
     // 首先获取用户拥有的相册ID列表

@@ -112,11 +112,18 @@ export default function LoginPage() {
           </form>
         </Form>
 
-        <div className="text-center text-sm">
-          还没有账户？{' '}
-          <Link href="/register" className="text-primary hover:underline">
-            立即注册
-          </Link>
+        <div className="flex flex-col gap-2 text-center text-sm">
+          <div>
+            还没有账户？{' '}
+            <Link href="/register" className="text-primary hover:underline">
+              立即注册
+            </Link>
+          </div>
+          <div>
+            <Link href="/auth/forgot-password" className="text-primary hover:underline">
+              忘记密码？
+            </Link>
+          </div>
         </div>
       </div>
     </div>
